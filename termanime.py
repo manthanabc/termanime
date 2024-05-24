@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 
 import argparse
@@ -6,7 +5,8 @@ import os
 import subprocess
 import random
 import PIL 
-from PIL import Image  
+from PIL import Image
+from term_image.image import from_file
 
 themes_dir = os.path.expanduser('~/.config/termanime/themes')
 config_dir = os.path.expanduser('~/.config/termanime/termanime.conf')
@@ -54,7 +54,8 @@ def print_image() :
     path = os.path.join(themes_dir, theme)
     random_img = random.choice(os.listdir(path))
     display_image = os.path.join(path, random_img)
-    subprocess.run(["/usr/bin/kitty", "icat", "--align", "left", display_image])
+    image = from_file(display_image, width=60)
+    image.draw(h_align="left", v_align="top", pad_height=-200)
 
 def main() -> None :
     parser = argparse.ArgumentParser(
