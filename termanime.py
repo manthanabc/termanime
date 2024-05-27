@@ -2,36 +2,53 @@
 
 import argparse
 import os
+import toml
 import subprocess
 import random
 import PIL 
 from PIL import Image
 from term_image.image import from_file
 
-themes_dir = os.path.expanduser('~/.config/termanime/themes')
+themes_dir = os.path.expanduser('~/.themes/termanime')
 config_dir = os.path.expanduser('~/.config/termanime/termanime.conf')
 
-def get_theme() :
-    with open(config_dir, 'r') as f:
-        return f.read().strip()
+cofig = {}
+
+def load_config() :
+    global config 
+    config = toml.load(config_dir)
+
+def save_config():
+    if not os.path.exists(config_dir):
+        print('Config file not found :(')
+    else:
+        with open(config_dir, 'w') as f:
+            toml.dump(config, f)
+
 
 def print_list() : 
     for i in os.listdir(themes_dir):
         print(i)
 
+def print_img(theme) :
+    path = ''
+    if theme:
+        path = os.path.join(themes_dir, theme)
+        if not os.path.exists(path):
+            print("Theme does not exist..")
+            exit(1)
+    else:
+        path = os.path.join(themes_dir, config["theme"])
 
-def print_img(theme) : 
-    path = os.path.join(themes_dir,theme if theme else get_theme())
     for i in os.listdir(path) :
         print(i)
 
-def new_theme(set_theme) :
-    path = os.path.join(themes_dir, set_theme)
+def change_theme(theme) :
+    config["theme"] = theme
+    path = os.path.join(themes_dir, theme)
     if not os.path.exists(path):
-        print('Directory does not exists')
-    else:
-        with open(config_dir, 'w') as f:
-            f.write(set_theme)
+        print('Theme does not exist')
+    save_config()
             
 def add_image(add_img, name, theme) :
     img = PIL.Image.open(add_img)
@@ -43,14 +60,23 @@ def add_image(add_img, name, theme) :
     if theme :
         path = os.path.join(themes_dir, theme)
         if not os.path.exists(path) :
-            os.mkdir(path)
+            print("Theme does not exist do you want to create one (y/N): ", end='')
+            a=input()
+            if 'y' in a.lower():
+                os.mkdir(path)
+            else:
+                exit(1)
         path = os.path.join(path, name if name else basename)
     else :
-        path = os.path.join(themes_dir, get_theme(), name if name else basename)
+        path = os.path.join(themes_dir, config["theme"], name if name else basename)
     img_resized.save(path)
 
+def state_toggle(state) :
+    config['enabled'] = state
+    save_config()
+
 def print_image() :
-    theme = get_theme()
+    theme = config["theme"]
     path = os.path.join(themes_dir, theme)
     random_img = random.choice(os.listdir(path))
     display_image = os.path.join(path, random_img)
@@ -58,6 +84,7 @@ def print_image() :
     image.draw(h_align="left", v_align="top", pad_height=-200)
 
 def main() -> None :
+    load_config()
     parser = argparse.ArgumentParser(
     prog='termanime',
     description='Prints your favorate anime in terminal',
@@ -98,6 +125,11 @@ def main() -> None :
         help = 'help'
     )
     parser.add_argument(
+        '-ri',
+        '--remove-img',
+        help = 'help'
+    )
+    parser.add_argument(
         '-t', 
         '--theme',
         help = 'help'
@@ -108,10 +140,18 @@ def main() -> None :
         help = 'help'
     )
     parser.add_argument(
-        '-r',
-        '--remove-img',
+        '-e',
+        '--enable',
+        action='store_true',
         help = 'help'
     )
+    parser.add_argument(
+        '-d',
+        '--disable',
+        action='store_true',
+        help = 'help'
+    )
+    
     args = parser.parse_args()
 
     if args.list_theme :
@@ -119,19 +159,26 @@ def main() -> None :
     elif args.list_img :
         print_img(args.theme)
     elif args.get_theme:
-        print(get_theme())
+        print(config["theme"])
     elif args.set_theme :
-        new_theme(args.set_theme)
+        change_theme(args.set_theme)
     elif args.add_img :
         add_image(args.add_img, args.name, args.theme)
     elif args.remove_img :
-        path = os.path.join(themes_dir, args.theme if args.theme else get_theme(), os.path.basename(args.remove_img))
+        path = os.path.join(themes_dir, args.theme if args.theme else config["theme"], os.path.basename(args.remove_img))
         os.remove(path)
     elif args.mk_theme :
         path = os.path.join(themes_dir, args.mk_theme)
         os.mkdir(path)
+    elif args.enable or args.disable :
+        state_toggle(True if args.enable else False)
+    elif not config['enabled'] :
+        exit(1) 
     else :
         print_image()
+                
+    if not config['enabled'] :
+        exit(1)
         
-if __name__ == "__main__" :
+if __name__ == "__main__":
     main()
